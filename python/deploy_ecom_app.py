@@ -15,6 +15,7 @@ import getpass
 import shutil
 import json
 import time
+import git
 
 # Constants for directories and file names
 BASE_DIR = "/opt/minikube/namespaces/application/"
@@ -263,8 +264,8 @@ def perform_uninstallation(logger):
         subprocess.run(["kubectl", "delete", "namespace", "application"], check=True)
         logger.info("Application namespace deleted successfully.")
     except subprocess.CalledProcessError as e:
-        logger.error(f"Failed to delete 'application' namespace: {e}")
-        sys.exit(1)
+        logger.error(f"'application' namespace does not exist: {e}")
+        #sys.exit(1)
 
 def main():
     """
@@ -289,10 +290,14 @@ def main():
     
     # Display main interactive menu.
     while True:
-        print("\nEcommerce Application Deployment Menu:")
-        print("1. Installation")
-        print("2. Uninstallation")
-        print("3. Exit")
+        print("\n---------------------------------------------------------------------")
+        print("Ecommerce Transasaction Application Deployment Menu")
+        print("---------------------------------------------------------------------")
+        print("1. Deploy Ecommerce Transasaction Application in Minikube Cluster")
+        print("2. Remove Ecommerce Transasaction Application from Minikube Cluster")
+        print("3. Exit to resource deployment menu")
+        print("---------------------------------------------------------------------")
+
         choice = input("\nPlease select an option (1-3): ").strip()
         if choice == "1":
             logger.info("User selected Installation.")

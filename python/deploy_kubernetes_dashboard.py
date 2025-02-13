@@ -121,8 +121,12 @@ def patch_service(namespace):
     """Patch the 'kubernetes-dashboard-kong-proxy' service to type NodePort."""
     logger.info("Patching service 'kubernetes-dashboard-kong-proxy' to type NodePort...")
     # Escape curly braces by doubling them so that .format() does not treat them as placeholders.
+    #patch_cmd = ("kubectl -n {ns} patch svc kubernetes-dashboard-kong-proxy -p "
+    #             "'{{\"spec\": {{\"type\": \"NodePort\"}}}}'").format(ns=namespace)
+    #patch_cmd = ("kubectl -n {ns} patch svc kubernetes-dashboard-kong-proxy -p "
+    #            "'{{\"spec\": {{\"type\": \"NodePort\", \"ports\": [{{\"name\": \"https\", \"nodePort\": 30243}}]}}}}'").format(ns=namespace)
     patch_cmd = ("kubectl -n {ns} patch svc kubernetes-dashboard-kong-proxy -p "
-                 "'{{\"spec\": {{\"type\": \"NodePort\"}}}}'").format(ns=namespace)
+                "'{{\"spec\": {{\"type\": \"NodePort\", \"ports\": [{{\"port\": 443, \"nodePort\": 30243}}]}}}}'").format(ns=namespace)
     run_command(patch_cmd)
 
 def extract_nodeport(namespace):
@@ -182,27 +186,46 @@ def restart_ingress():
     logger.info("Restarting Nginx Ingress Pods...")
     run_command("kubectl rollout restart deployment ingress-nginx-controller -n ingress-nginx")
 
-def post_deployment(nodeport, tasks):
+#def post_deployment(nodeport, tasks):
+def post_deployment(tasks):
     """Display post-deployment steps, including nginx configuration update instructions,
        the access token, and the Dashboard URL."""
     logger.info("Post-deployment steps completed successfully.")
     print("\nTasks performed:")
     for t in tasks:
         print(f" - {t}")
-    msg = (f"\nIMPORTANT: Update the '/etc/nginx/conf.d/marvel.conf' file with the new NodePort "
-           f"{nodeport} in the line:\n   proxy_pass https://192.168.49.2:{nodeport};\n"
-           "Then restart Nginx with:\n   sudo systemctl restart nginx.service")
-    print(msg)
+    #msg = (f"\nIMPORTANT: Update the '/etc/nginx/conf.d/marvel.conf' file with the new NodePort "
+    #       f"{nodeport} in the line:\n   proxy_pass https://192.168.49.2:{nodeport};\n"
+    #       "Then restart Nginx with:\n   sudo systemctl restart nginx.service")
+    #print(msg)
     token = run_command("kubectl -n kubernetes-dashboard create token dashboard-admin-sa --duration=48h")
     print("\nDashboard Access Token (valid for 48h):")
     print(token)
     print("\nAccess the Kubernetes Dashboard UI at:")
     print("   https://kubernetes.marvel.com")
 
+def remove_namespace():
+    """New function to remove the 'kubernetes-dashboard' namespace."""
+    print("Initiating removal of Kubernetes Dashboard namespace...")
+    ret = subprocess.run("kubectl get ns kubernetes-dashboard", shell=True, capture_output=True, text=True)
+    if ret.returncode != 0:
+        print("Namespace 'kubernetes-dashboard' does not exist.")
+        return
+    ret = subprocess.run("kubectl delete ns kubernetes-dashboard", shell=True, capture_output=True, text=True)
+    if ret.returncode == 0:
+        print("Kubernetes Dashboard namespace removed successfully.")
+    else:
+        print("Error: Failed to remove Kubernetes Dashboard namespace.")
+        print(ret.stderr)
+
+def deploy_dashboard():
+    """Wrapper to invoke the existing deployment logic."""
+    # Assuming your main() function contains all your deployment logic.
+    main()
+
 # -------------------------------
 # Main execution flow
 # -------------------------------
-
 def main():
     tasks_performed = []
     
@@ -320,12 +343,12 @@ def main():
     tasks_performed.append("Service 'kubernetes-dashboard-kong-proxy' patched to NodePort")
 
     # 12. Extract NodePort value
-    nodeport = extract_nodeport("kubernetes-dashboard")
-    tasks_performed.append(f"Extracted NodePort: {nodeport}")
+    #nodeport = extract_nodeport("kubernetes-dashboard")
+    #tasks_performed.append(f"Extracted NodePort: {nodeport}")
 
     # 13. Open firewall for the extracted NodePort (if applicable)
-    open_firewall(nodeport)
-    tasks_performed.append(f"Firewall opened for NodePort {nodeport}")
+    #open_firewall(nodeport)
+    #tasks_performed.append(f"Firewall opened for NodePort {nodeport}")
 
     # 14. Call the external secret generation script
     call_secret_script()
@@ -340,7 +363,35 @@ def main():
     tasks_performed.append("Nginx Ingress Pods restarted")
 
     # 17. Post-deployment summary: instruct update of nginx config, show token and URL
-    post_deployment(nodeport, tasks_performed)
+    #post_deployment(nodeport, tasks_performed)
+    post_deployment(tasks_performed)
+
+    pass  # Replace with your current main() logic
+
+def interactive_menu():
+    """Display an interactive menu to choose deployment, removal, or exit."""
+    while True:
+        print("\n-------------------------------")
+        print("Kubernetes Dashboard Menu")
+        print("-------------------------------")
+        print("1. Deploy Kubernetes Dashboard in Minikube Cluster")
+        print("2. Remove Kubernetes Dashboard from Minikube Cluster")
+        print("3. Exit to resource deployment menu")
+        print("-------------------------------")
+        choice = input("Enter your choice [1-3]: ").strip()
+        if choice == "1":
+            logging.info("User selected deployment option.")
+            deploy_dashboard()
+        elif choice == "2":
+            logging.info("User selected removal option.")
+            remove_namespace()
+        elif choice == "3":
+            logging.info("User selected to exit the menu.")
+            print("Exiting...")
+            sys.exit(0)
+        else:
+            print("Invalid input. Please enter 1, 2, or 3.")
 
 if __name__ == "__main__":
-    main()
+    #main()
+    interactive_menu()

@@ -448,13 +448,13 @@ def post_start_configuration():
                 os.environ[key] = value
                 logger.debug(f"Set env var {key}={value}")
     
-    log_message("\nVerifying required namespaces...")
-    for ns in REQUIRED_NAMESPACES:
-        if subprocess.run(f"kubectl get namespace {ns}", shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode != 0:
-            run_command(f"kubectl create namespace {ns}")
-            log_message(f"Created namespace: {ns}")
-        else:
-            logger.debug(f"Namespace exists: {ns}")
+    #log_message("\nVerifying required namespaces...")
+    #for ns in REQUIRED_NAMESPACES:
+    #    if subprocess.run(f"kubectl get namespace {ns}", shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode != 0:
+    #        run_command(f"kubectl create namespace {ns}")
+    #        log_message(f"Created namespace: {ns}")
+    #    else:
+    #        logger.debug(f"Namespace exists: {ns}")
     
     enable_addons()
     display_cluster_info()

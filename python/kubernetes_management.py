@@ -82,10 +82,11 @@ def resource_menu(logger):
         logger.info("3. Database")
         logger.info("4. Application")
         logger.info("5. Streaming")
-        logger.info("6. Monitoring")
-        logger.info("7. Observability")
-        logger.info("8. Exit to Main Menu")
-        choice = input("\nPlease select a resource option (1-8): ").strip()
+        logger.info("6. MySQL-Kafka Bridge")
+        logger.info("7. Monitoring")
+        logger.info("8. Observability")
+        logger.info("9. Exit to Main Menu")
+        choice = input("\nPlease select a resource option (1-9): ").strip()
         if choice == "1":
             run_script("/opt/minikube/scripts/python/deploy_kubernetes_dashboard.py", logger)
         elif choice == "2":
@@ -97,10 +98,12 @@ def resource_menu(logger):
         elif choice == "5":
             run_script("/opt/minikube/scripts/python/deploy_kafka.py", logger)
         elif choice == "6":
-            run_script("/opt/minikube/scripts/python/deploy_prometheus.py", logger)
+            run_script("/opt/minikube/scripts/python/deploy_mysql_kafka_bridge.py", logger)
         elif choice == "7":
-            run_script("/opt/minikube/scripts/python/deploy_elk.py", logger)
+            run_script("/opt/minikube/scripts/python/deploy_prometheus.py", logger)
         elif choice == "8":
+            run_script("/opt/minikube/scripts/python/deploy_elk.py", logger)
+        elif choice == "9":
             logger.info("Returning to Main Menu.")
             break
         else:
