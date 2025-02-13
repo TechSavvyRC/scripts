@@ -183,13 +183,13 @@ remove_namespace() {
 interactive_menu() {
     while true; do
         echo ""
-        echo "-------------------------------"
-        echo "Kubernetes Dashboard Menu"
-        echo "-------------------------------"
+        echo "------------------------------------------------------"
+        echo "MySQL and PhpMyAdmin Deplyment Menu"
+        echo "------------------------------------------------------"
         echo "1. Deploy MySQL and PhpMyAdmin in Minikube Cluster"
         echo "2. Remove MySQL and PhpMyAdmin from Minikube Cluster"
         echo "3. Exit to resource deployment menu"
-        echo "-------------------------------"
+        echo "------------------------------------------------------"
         echo ""
         read -rp "Enter your choice [1-3]: " choice
         case $choice in
