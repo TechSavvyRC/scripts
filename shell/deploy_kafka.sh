@@ -69,21 +69,6 @@ run_command() {
     echo "$output" | sed 's/[[:space:]]*$//'
 }
 
-#wait_for_rollout() {
-#    # wait_for_rollout RESOURCE_TYPE RESOURCE_NAME NAMESPACE TIMEOUT
-#    local resource_type=$1
-#    local resource_name=$2
-#    local namespace=$3
-#    local timeout=$4
-#    kubectl rollout status "${resource_type}/${resource_name}" -n "$namespace" --timeout="${timeout}"
-#    if [ $? -ne 0 ]; then
-#        log_msg "ERROR" "Error waiting for ${resource_type} '${resource_name}' rollout."
-#        return 1
-#    fi
-#    log_msg "INFO" "${resource_type^} '${resource_name}' rollout complete."
-#    return 0
-#}
-
 # wait_for_pods: Poll until all pods in the namespace are ready (READY exactly "1/1").
 wait_for_pods() {
     local namespace="$1"
@@ -123,19 +108,12 @@ wait_for_pods() {
 }
 
 deploy_kafka_and_redpanda() {
-    # 1. User verification.
-    #current_user=$(whoami)
-    #if [ "$current_user" != "muser" ]; then
-    #    log_msg "ERROR" "Error: Only user 'muser' is permitted to run this script. (Current user: $current_user)"
-    #    exit 1
-    #fi
-
-    # 2. Ensure the namespace directory exists and change into it.
+    # 1. Ensure the namespace directory exists and change into it.
     mkdir -p "$NAMESPACE_DIR" || { log_msg "ERROR" "Failed to create directory '$NAMESPACE_DIR'."; exit 1; }
     cd "$NAMESPACE_DIR" || { log_msg "ERROR" "Failed to change directory to '$NAMESPACE_DIR'."; exit 1; }
     log_msg "DEBUG" "Namespace directory '$NAMESPACE_DIR' is ready."
 
-    # 3. Check for required files; if missing, fetch them.
+    # 2. Check for required files; if missing, fetch them.
     missing_files=()
     for file in "${REQUIRED_FILES[@]}"; do
         if [ ! -f "$file" ]; then
@@ -149,7 +127,7 @@ deploy_kafka_and_redpanda() {
         log_msg "DEBUG" "All required files are present."
     fi
 
-    # 4. Verify that Minikube is running.
+    # 3. Verify that Minikube is running.
     minikube_status=$(minikube status 2>&1)
     if [[ "$minikube_status" != *"Running"* ]]; then
         log_msg "INFO" "Minikube is not running. Please start Minikube and try again."
@@ -158,7 +136,7 @@ deploy_kafka_and_redpanda() {
         log_msg "DEBUG" "Minikube status: Running."
     fi
 
-    # 5. Ensure the 'streaming' namespace exists.
+    # 4. Ensure the 'streaming' namespace exists.
     kubectl get namespace "$NAMESPACE" >/dev/null 2>&1
     if [ $? -ne 0 ]; then
         log_msg "INFO" "Namespace '$NAMESPACE' does not exist. Creating..."
@@ -172,7 +150,7 @@ deploy_kafka_and_redpanda() {
         log_msg "DEBUG" "Namespace '$NAMESPACE' exists."
     fi
 
-    # 6. Check existing resources in the namespace.
+    # 5. Check existing resources in the namespace.
     resources_output=$(kubectl get all -n "$NAMESPACE" 2>&1)
     mapfile -t lines <<< "$resources_output"
     if [ ${#lines[@]} -le 1 ]; then
@@ -199,7 +177,7 @@ deploy_kafka_and_redpanda() {
         exit 0
     fi
 
-    # 7. If extraneous resources exist, prompt the user.
+    # 6. If extraneous resources exist, prompt the user.
     if [ "$extraneous" = true ]; then
         log_msg "INFO" "Unexpected resources found in namespace '$NAMESPACE':"
         log_msg "INFO" "-------------------------------------------------------------------------------------------------"
@@ -218,7 +196,7 @@ deploy_kafka_and_redpanda() {
         done
     fi
 
-    # 8. Handle namespace deletion if requested.
+    # 7. Handle namespace deletion if requested.
     if [ "$extraneous" = true ] && [ "$choice" = "2" ]; then
         log_msg "INFO" "Deleting namespace '$NAMESPACE'..."
         kubectl delete namespace "$NAMESPACE" >/dev/null 2>&1
@@ -242,7 +220,7 @@ deploy_kafka_and_redpanda() {
         log_msg "INFO" "Namespace '$NAMESPACE' re-created for fresh deployment."
     fi
 
-    # 9. Deploy Kafka resource.
+    # 8. Deploy Kafka resource.
     log_msg "INFO" "Deploying Kafka resource..."
     kubectl apply -f kafka.yaml -n "$NAMESPACE"
     if [ $? -ne 0 ]; then
@@ -250,14 +228,14 @@ deploy_kafka_and_redpanda() {
         exit 1
     fi
 
-    # 10. Wait until Kafka StatefulSet rollout is complete.
+    # 9. Wait until Kafka StatefulSet rollout is complete.
     #wait_for_rollout "statefulset" "kafka" "$NAMESPACE" "180s"
     wait_for_pods "streaming"
     if [ $? -ne 0 ]; then
         exit 1
     fi
 
-    # 11. Create Kafka topic.
+    # 10. Create Kafka topic.
     log_msg "INFO" "Creating Kafka topic '$TOPIC_NAME'..."
     kubectl exec -n "$NAMESPACE" kafka-0 -- kafka-topics --create --topic "$TOPIC_NAME" --bootstrap-server kafka.streaming.svc.cluster.local:9092 --replication-factor 1 --partitions 1 >/dev/null 2>&1
     if [ $? -ne 0 ]; then
@@ -266,7 +244,7 @@ deploy_kafka_and_redpanda() {
     fi
     log_msg "INFO" "Kafka topic '$TOPIC_NAME' created successfully."
 
-    # 12. Deploy Redpanda resource.
+    # 11. Deploy Redpanda resource.
     log_msg "INFO" "Deploying Redpanda resource..."
     kubectl apply -f redpanda.yaml -n "$NAMESPACE"
     if [ $? -ne 0 ]; then
@@ -274,14 +252,14 @@ deploy_kafka_and_redpanda() {
         exit 1
     fi
 
-    # 13. Wait until Redpanda Deployment rollout is complete.
+    # 12. Wait until Redpanda Deployment rollout is complete.
     #wait_for_rollout "deployment" "redpanda-console" "$NAMESPACE" "180s"
     wait_for_pods "streaming"
     if [ $? -ne 0 ]; then
         exit 1
     fi
 
-    # 14. Display the current resources in a formatted table.
+    # 13. Display the current resources in a formatted table.
     final_output=$(kubectl get all -n "$NAMESPACE" -o wide)
     log_msg "INFO" "-------------------------------------------------------------------------------------------------"
     log_msg "INFO" "## Resources Running Under 'streaming' Namespace"
@@ -296,12 +274,6 @@ deploy_kafka_and_redpanda() {
 # This new function removes the 'streaming' namespace.
 remove_streaming_namespace() {
     log_msg "INFO" "Initiating removal of 'streaming' namespace..."
-
-    #current_user=$(whoami)
-    #if [ "$current_user" != "muser" ]; then
-    #    log_msg "ERROR" "Error: Only user 'muser' is permitted to run this script. (Current user: $current_user)"
-    #    exit 1
-    #fi
 
     if kubectl get namespace "$NAMESPACE" &>/dev/null; then
         kubectl delete namespace "$NAMESPACE" >/dev/null 2>&1
@@ -358,12 +330,6 @@ interactive_menu() {
 # --- Start of Script ---
 mkdir -p "$LOG_DIR" || { echo "Failed to create log directory '$LOG_DIR'." && exit 1; }
 log_msg "INFO" "Starting Kafka and Redpanda deployment script."
-# (Existing user verification, directory setup, file checking, etc. are already part of the deployment logic.)
 
 # Instead of auto-running deployment logic immediately, call the interactive menu.
 interactive_menu
-
-# --- Start of Script ---
-#mkdir -p "$LOG_DIR" || { echo "Failed to create log directory '$LOG_DIR'." && exit 1; }
-#log_msg "INFO" "Starting Kafka and Redpanda deployment script."
-
