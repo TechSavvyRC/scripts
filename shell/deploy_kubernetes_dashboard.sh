@@ -148,42 +148,43 @@ patch_service() {
     log_info "Patching service 'kubernetes-dashboard-kong-proxy' to type NodePort..."
     # Use double braces to escape for shell formatting.
     local patch_cmd
-    patch_cmd="kubectl -n $namespace patch svc kubernetes-dashboard-kong-proxy -p '{\"spec\": {\"type\": \"NodePort\"}}'"
+    #patch_cmd="kubectl -n $namespace patch svc kubernetes-dashboard-kong-proxy -p '{\"spec\": {\"type\": \"NodePort\"}}'"
+    patch_cmd="kubectl -n $namespace patch svc kubernetes-dashboard-kong-proxy -p '{\"spec\": {\"type\": \"NodePort\", \"ports\": [{\"port\": 443, \"nodePort\": 30243}]}}'"
     run_command "$patch_cmd"
 }
 
 # extract_nodeport: Extracts the NodePort from the service output.
-extract_nodeport() {
-    local namespace="$1"
-    log_info "Extracting NodePort from service 'kubernetes-dashboard-kong-proxy'..."
-    local svc_output
-    svc_output=$(run_command "kubectl get svc -n $namespace kubernetes-dashboard-kong-proxy")
-    # Use grep with a Perl regex to find something like :31447/TCP
-    local nodeport
-    nodeport=$(echo "$svc_output" | grep -oP ':(\d+)/TCP' | grep -oP '\d+')
-    if [[ -z "$nodeport" ]]; then
-        log_error "Failed to extract NodePort from service output."
-        exit 1
-    else
-        log_info "Extracted NodePort: $nodeport"
-        echo "$nodeport"
-    fi
-}
+#extract_nodeport() {
+#    local namespace="$1"
+#    log_info "Extracting NodePort from service 'kubernetes-dashboard-kong-proxy'..."
+#    local svc_output
+#    svc_output=$(run_command "kubectl get svc -n $namespace kubernetes-dashboard-kong-proxy")
+#    # Use grep with a Perl regex to find something like :31447/TCP
+#    local nodeport
+#    nodeport=$(echo "$svc_output" | grep -oP ':(\d+)/TCP' | grep -oP '\d+')
+#    if [[ -z "$nodeport" ]]; then
+#        log_error "Failed to extract NodePort from service output."
+#        exit 1
+#    else
+#        log_info "Extracted NodePort: $nodeport"
+#        echo "$nodeport"
+#    fi
+#}
 
 # open_firewall: Opens the firewall for the given NodePort (Linux only).
-open_firewall() {
-    local nodeport="$1"
-    if [[ "$OSTYPE" != "linux-gnu"* ]]; then
-        log_info "Firewall configuration skipped on non-linux platform."
-        return
-    fi
-    # Decode base64 "MTIzNA==" to get "1234"
-    local password
-    password=$(echo "MTIzNA==" | base64 --decode)
-    log_info "Opening firewall port for NodePort $nodeport (requires root access)..."
-    run_command "echo \"$password\" | sudo -S firewall-cmd --add-port=${nodeport}/tcp --permanent"
-    run_command "echo \"$password\" | sudo -S firewall-cmd --reload"
-}
+#open_firewall() {
+#    local nodeport="$1"
+#    if [[ "$OSTYPE" != "linux-gnu"* ]]; then
+#        log_info "Firewall configuration skipped on non-linux platform."
+#        return
+#    fi
+#    # Decode base64 "MTIzNA==" to get "1234"
+#    local password
+#    password=$(echo "MTIzNA==" | base64 --decode)
+#    log_info "Opening firewall port for NodePort $nodeport (requires root access)..."
+#    run_command "echo \"$password\" | sudo -S firewall-cmd --add-port=${nodeport}/tcp --permanent"
+#    run_command "echo \"$password\" | sudo -S firewall-cmd --reload"
+#}
 
 # call_secret_script: Calls the external secret generation script.
 call_secret_script() {
@@ -227,7 +228,7 @@ restart_ingress() {
 
 # post_deployment: Displays post-deployment summary and instructions.
 post_deployment() {
-    local nodeport="$1"
+    #local nodeport="$1"
     shift
     local tasks=("$@")
     log_info "Post-deployment steps completed successfully."
@@ -235,16 +236,66 @@ post_deployment() {
     for t in "${tasks[@]}"; do
         echo " - $t"
     done
-    echo -e "\nIMPORTANT: Update the '/etc/nginx/conf.d/marvel.conf' file with the new NodePort ${nodeport} in the line:"
-    echo "   proxy_pass https://192.168.49.2:${nodeport};"
-    echo "Then restart Nginx with:"
-    echo "   sudo systemctl restart nginx.service"
+    #echo -e "\nIMPORTANT: Update the '/etc/nginx/conf.d/marvel.conf' file with the new NodePort ${nodeport} in the line:"
+    #echo "   proxy_pass https://192.168.49.2:${nodeport};"
+    #echo "Then restart Nginx with:"
+    #echo "   sudo systemctl restart nginx.service"
     local token
     token=$(run_command "kubectl -n kubernetes-dashboard create token dashboard-admin-sa --duration=48h")
     echo -e "\nDashboard Access Token (valid for 48h):"
     echo "$token"
     echo -e "\nAccess the Kubernetes Dashboard UI at:"
     echo "   https://kubernetes.marvel.com"
+}
+
+# Remove Dashboard Namespace
+remove_namespace() {
+    log_info "Initiating removal of Kubernetes Dashboard namespace..."
+    if kubectl get ns kubernetes-dashboard &>/dev/null; then
+        if run_command "kubectl delete ns kubernetes-dashboard"; then
+            log_info "Kubernetes Dashboard namespace removed successfully."
+            echo "Kubernetes Dashboard namespace removed successfully."
+        else
+            log_error "Failed to remove Kubernetes Dashboard namespace."
+            echo "Error: Failed to remove the namespace."
+        fi
+    else
+        echo "Namespace 'kubernetes-dashboard' does not exist."
+    fi
+}
+
+# Interactive Menu
+interactive_menu() {
+    while true; do
+        echo ""
+        echo "-------------------------------"
+        echo "Kubernetes Dashboard Menu"
+        echo "-------------------------------"
+        echo "1. Deploy Kubernetes Dashboard in Minikube Cluster"
+        echo "2. Remove Kubernetes Dashboard from Minikube Cluster"
+        echo "3. Exit to resource deployment menu"
+        echo "-------------------------------"
+        read -rp "Enter your choice [1-3]: " choice
+        case $choice in
+            1)
+                log_info "User selected deployment option."
+                # Call existing main deployment function
+                main
+                ;;
+            2)
+                log_info "User selected removal option."
+                remove_namespace
+                ;;
+            3)
+                log_info "User selected to exit the menu."
+                echo "Exiting..."
+                exit 0
+                ;;
+            *)
+                echo "Invalid input. Please enter 1, 2, or 3."
+                ;;
+        esac
+    done
 }
 
 #######################################
@@ -345,13 +396,13 @@ main() {
     tasks_performed+=("Service 'kubernetes-dashboard-kong-proxy' patched to NodePort")
     
     # 12. Extract NodePort value.
-    local nodeport
-    nodeport=$(extract_nodeport "kubernetes-dashboard")
-    tasks_performed+=("Extracted NodePort: ${nodeport}")
+    #local nodeport
+    #nodeport=$(extract_nodeport "kubernetes-dashboard")
+    #tasks_performed+=("Extracted NodePort: ${nodeport}")
     
     # 13. Open firewall for the extracted NodePort (if applicable).
-    open_firewall "$nodeport"
-    tasks_performed+=("Firewall opened for NodePort ${nodeport}")
+    #open_firewall "$nodeport"
+    #tasks_performed+=("Firewall opened for NodePort ${nodeport}")
     
     # 14. Call the external secret generation script.
     call_secret_script
@@ -367,8 +418,11 @@ main() {
     
     # 17. Post-deployment summary: display tasks, instruct Nginx config update,
     # retrieve token, and show Dashboard URL.
-    post_deployment "$nodeport" "${tasks_performed[@]}"
+    post_deployment "${tasks_performed[@]}"
 }
 
+# Instead of calling main directly, call the interactive menu.
+interactive_menu
+
 # Execute main
-main
+#main

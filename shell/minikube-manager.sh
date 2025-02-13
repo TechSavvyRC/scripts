@@ -190,15 +190,15 @@ post_start_configuration() {
     log "\nConfiguring Docker environment..."
     eval "$(minikube docker-env)"
     
-    log "\nVerifying namespaces..."
-    for ns in "${REQUIRED_NAMESPACES[@]}"; do
-        if ! kubectl get namespace "$ns" >/dev/null 2>&1; then
-            kubectl create namespace "$ns"
-            log "Created namespace: $ns"
-        else
-            log "Namespace already exists: $ns"
-        fi
-    done
+    #log "\nVerifying namespaces..."
+    #for ns in "${REQUIRED_NAMESPACES[@]}"; do
+    #    if ! kubectl get namespace "$ns" >/dev/null 2>&1; then
+    #        kubectl create namespace "$ns"
+    #        log "Created namespace: $ns"
+    #    else
+    #        log "Namespace already exists: $ns"
+    #    fi
+    #done
     
     enable_addons
     display_cluster_info
@@ -412,12 +412,16 @@ uninstall_minikube() {
 # Interactive menu
 show_menu() {
     PS3=$'\nSelect operation: '
-    options=("Install Minikube" "Start Minikube" "Stop Minikube" "Minikube Status" "Upgrade Minikube" "Delete Minikube" "Backup Resources" "Restore Resources" "Uninstall Minikube" "Quit")
+    options=("Install Minikube" "Minikube Status" "Start Minikube" "Stop Minikube" "Upgrade Minikube" "Delete Minikube" "Backup Resources" "Restore Resources" "Uninstall Minikube" "Quit")
     
     select opt in "${options[@]}"; do
         case "${opt}" in
             "Install Minikube")
                 install_minikube
+                break
+                ;;
+            "Minikube Status")
+                show_status
                 break
                 ;;
             "Start Minikube")
@@ -426,10 +430,6 @@ show_menu() {
                 ;;
             "Stop Minikube")
                 stop_minikube
-                break
-                ;;
-            "Minikube Status")
-                show_status
                 break
                 ;;
             "Upgrade Minikube")

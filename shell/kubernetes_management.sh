@@ -42,20 +42,22 @@ resource_menu() {
         log_info "3. Database"
         log_info "4. Application"
         log_info "5. Streaming"
-        log_info "6. Monitoring"
-        log_info "7. Observability"
-        log_info "8. Exit to Main Menu"
+        log_info "6. MySQL-Kafka Bridge"
+        log_info "7. Monitoring"
+        log_info "8. Observability"
+        log_info "9. Exit to Main Menu"
 	    echo
-        read -p "Please select a resource option (1-8): " choice
+        read -p "Please select a resource option (1-9): " choice
         case "$choice" in
             1) run_script "/opt/minikube/scripts/shell/deploy_kubernetes_dashboard.sh" ;;
             2) run_script "/opt/minikube/scripts/shell/deploy_velero.sh" ;;
             3) run_script "/opt/minikube/scripts/shell/deploy_mysql.sh" ;;
             4) run_script "/opt/minikube/scripts/shell/deploy_ecom_app.sh" ;;
             5) run_script "/opt/minikube/scripts/shell/deploy_kafka.sh" ;;
-            6) run_script "/opt/minikube/scripts/shell/deploy_prometheus.sh" ;;
-            7) run_script "/opt/minikube/scripts/shell/deploy_elk.sh" ;;
-            8) log_info "Returning to Main Menu." ; break ;;
+            6) run_script "/opt/minikube/scripts/shell/deploy_mysql_kafka_bridge.sh" ;;
+            7) run_script "/opt/minikube/scripts/shell/deploy_prometheus.sh" ;;
+            8) run_script "/opt/minikube/scripts/shell/deploy_elk.sh" ;;
+            9) log_info "Returning to Main Menu." ; break ;;
             *) log_info "Invalid selection. Please try again." ;;
         esac
     done

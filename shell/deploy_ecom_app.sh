@@ -189,17 +189,21 @@ perform_installation() {
 
 # perform_uninstallation: Deletes the 'application' namespace.
 perform_uninstallation() {
-    kubectl delete namespace "$NAMESPACE" || { log_error "Failed to delete namespace '$NAMESPACE'."; exit 1; }
+    kubectl delete namespace "$NAMESPACE" || { log_error "'$NAMESPACE' does not exist."; exit 0; }
     log_info "Namespace '$NAMESPACE' deleted successfully."
 }
 
 # Main interactive menu.
 while true; do
     echo ""
-    echo "Ecommerce Application Deployment Menu:"
-    echo "1. Installation"
-    echo "2. Uninstallation"
-    echo "3. Exit"
+    echo "---------------------------------------------------------------------"
+    echo "Ecommerce Transasaction Application Deployment Menu"
+    echo "---------------------------------------------------------------------"
+    echo "1. Deploy Ecommerce Transasaction Application in Minikube Cluster"
+    echo "2. Remove Ecommerce Transasaction Application from Minikube Cluster"
+    echo "3. Exit to resource deployment menu"
+    echo "---------------------------------------------------------------------"
+    echo ""
     read -p "Please select an option (1-3): " choice
     case "$choice" in
         1)
