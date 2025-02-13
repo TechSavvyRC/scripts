@@ -13,7 +13,7 @@ set -euo pipefail
 #######################################
 # Global Variables and Logging Setup  #
 #######################################
-LOG_DIR="/opt/minikube/scripts/logs"
+LOG_DIR="/opt/minikube/scripts/shell/logs"
 SCRIPT_NAME=$(basename "$0")
 LOG_FILE="$LOG_DIR/${SCRIPT_NAME%.*}.log"
 
