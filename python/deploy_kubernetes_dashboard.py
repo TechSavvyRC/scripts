@@ -24,7 +24,6 @@ import base64
 # -------------------------------
 # Helper functions
 # -------------------------------
-
 def run_command(cmd, capture_output=True, check=True, input_text=None):
     """Run a shell command and return its output; log errors on failure."""
     logger.info(f"Executing command: {cmd}")
@@ -121,10 +120,6 @@ def patch_service(namespace):
     """Patch the 'kubernetes-dashboard-kong-proxy' service to type NodePort."""
     logger.info("Patching service 'kubernetes-dashboard-kong-proxy' to type NodePort...")
     # Escape curly braces by doubling them so that .format() does not treat them as placeholders.
-    #patch_cmd = ("kubectl -n {ns} patch svc kubernetes-dashboard-kong-proxy -p "
-    #             "'{{\"spec\": {{\"type\": \"NodePort\"}}}}'").format(ns=namespace)
-    #patch_cmd = ("kubectl -n {ns} patch svc kubernetes-dashboard-kong-proxy -p "
-    #            "'{{\"spec\": {{\"type\": \"NodePort\", \"ports\": [{{\"name\": \"https\", \"nodePort\": 30243}}]}}}}'").format(ns=namespace)
     patch_cmd = ("kubectl -n {ns} patch svc kubernetes-dashboard-kong-proxy -p "
                 "'{{\"spec\": {{\"type\": \"NodePort\", \"ports\": [{{\"port\": 443, \"nodePort\": 30243}}]}}}}'").format(ns=namespace)
     run_command(patch_cmd)
@@ -194,10 +189,6 @@ def post_deployment(tasks):
     print("\nTasks performed:")
     for t in tasks:
         print(f" - {t}")
-    #msg = (f"\nIMPORTANT: Update the '/etc/nginx/conf.d/marvel.conf' file with the new NodePort "
-    #       f"{nodeport} in the line:\n   proxy_pass https://192.168.49.2:{nodeport};\n"
-    #       "Then restart Nginx with:\n   sudo systemctl restart nginx.service")
-    #print(msg)
     token = run_command("kubectl -n kubernetes-dashboard create token dashboard-admin-sa --duration=48h")
     print("\nDashboard Access Token (valid for 48h):")
     print(token)
@@ -342,42 +333,33 @@ def main():
     patch_service("kubernetes-dashboard")
     tasks_performed.append("Service 'kubernetes-dashboard-kong-proxy' patched to NodePort")
 
-    # 12. Extract NodePort value
-    #nodeport = extract_nodeport("kubernetes-dashboard")
-    #tasks_performed.append(f"Extracted NodePort: {nodeport}")
-
-    # 13. Open firewall for the extracted NodePort (if applicable)
-    #open_firewall(nodeport)
-    #tasks_performed.append(f"Firewall opened for NodePort {nodeport}")
-
-    # 14. Call the external secret generation script
+    # 12. Call the external secret generation script
     call_secret_script()
     tasks_performed.append("Secret generation script executed")
 
-    # 15. Verify YAML files exist and apply them
+    # 13. Verify YAML files exist and apply them
     verify_and_apply_yaml()
     tasks_performed.append("YAML files verified and applied")
 
-    # 16. Restart Nginx Ingress Pods
+    # 14. Restart Nginx Ingress Pods
     restart_ingress()
     tasks_performed.append("Nginx Ingress Pods restarted")
 
-    # 17. Post-deployment summary: instruct update of nginx config, show token and URL
-    #post_deployment(nodeport, tasks_performed)
+    # 15. Post-deployment summary: instruct update of nginx config, show token and URL
     post_deployment(tasks_performed)
 
-    pass  # Replace with your current main() logic
+    pass
 
 def interactive_menu():
     """Display an interactive menu to choose deployment, removal, or exit."""
     while True:
-        print("\n-------------------------------")
+        print("\n--------------------------------------------------------")
         print("Kubernetes Dashboard Menu")
-        print("-------------------------------")
+        print("--------------------------------------------------------")
         print("1. Deploy Kubernetes Dashboard in Minikube Cluster")
         print("2. Remove Kubernetes Dashboard from Minikube Cluster")
         print("3. Exit to resource deployment menu")
-        print("-------------------------------")
+        print("--------------------------------------------------------")
         choice = input("Enter your choice [1-3]: ").strip()
         if choice == "1":
             logging.info("User selected deployment option.")
@@ -393,5 +375,4 @@ def interactive_menu():
             print("Invalid input. Please enter 1, 2, or 3.")
 
 if __name__ == "__main__":
-    #main()
     interactive_menu()
