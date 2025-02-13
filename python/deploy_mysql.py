@@ -254,13 +254,13 @@ def remove_database_namespace(deployer):
 def interactive_menu():
     deployer = DeploymentManager()
     while True:
-        print("\n-------------------------------")
+        print("\n-------------------------------------------------------")
         print("MySQL and PhpMyAdmin Deployment Menu")
-        print("-------------------------------")
+        print("-------------------------------------------------------")
         print("1. Deploy MySQL and PhpMyAdmin in Minikube Cluster")
         print("2. Remove MySQL and PhpMyAdmin from Minikube Cluster")
         print("3. Exit to resource deployment menu")
-        print("-------------------------------")
+        print("-------------------------------------------------------")
         choice = input("Enter your choice [1-3]: ").strip()
         if choice == '1':
             deployer.run()  # Existing deployment logic
