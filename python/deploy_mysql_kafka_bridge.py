@@ -1,4 +1,19 @@
 #!/usr/bin/env python3
+"""
+deploy_mysql_kafka_bridge.py – Deploy MySQL-Kafka-Bridge (with Redpanda) into a Minikube cluster.
+
+This script verifies that it is run by user 'muser', displays an immediate warning message
+(notifying that MySQL and Kafka resources must already be in ready state with the appropriate
+database/table and topic present), creates required directories, ensures that necessary files
+exist (fetching any missing ones from a GitHub repository), checks that Minikube is running, and
+verifies that the 'database' namespace exists. Then it verifies the status of three key resources:
+   1. The 'mysql' pod (assumed to be "mysql-0")
+   2. The 'mysql-svc-internal' service
+   3. The 'mysql-to-kafka' pod
+Based on these checks, the script either prompts the user for deletion and re-deployment of the 
+Mysql-Kafka-Bridge resource, or proceeds to deploy the resource, or exits with an error.
+"""
+
 import os
 import sys
 import subprocess
