@@ -107,51 +107,6 @@ def fetch_missing_files(logger, missing_files):
     shutil.rmtree(temp_dir)
     logger.info("Successfully fetched missing files.")
 
-#def wait_for_rollout(resource_type, resource_name, namespace, timeout="180s", logger=None):
-#    """
-#    Wait for the rollout status of a given resource (e.g., statefulset or deployment) to complete.
-#    """
-#    cmd = ["kubectl", "rollout", "status", f"{resource_type}/{resource_name}", "-n", namespace, "--timeout", timeout]
-#    try:
-#        subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-#        if logger:
-#            logger.info("%s '%s' rollout complete.", resource_type.capitalize(), resource_name)
-#        return True
-#    except subprocess.CalledProcessError as e:
-#        error_message = e.stderr.decode().strip() if e.stderr else str(e)
-#        if logger:
-#            logger.error("Error waiting for %s '%s' rollout: %s", resource_type, resource_name, error_message)
-#        return False
-
-#def wait_for_pods(logger, namespace, timeout=300, interval=10):
-#    """
-#    Poll until all pods in the given namespace are Running and have READY as '1/1'.
-#    Detailed readiness information is logged to help diagnose issues.
-#    """
-#    logger.info("Waiting for Streaming pods to be in Ready state (READY: 1/1)...")
-#    elapsed = 0
-#    while elapsed < timeout:
-#        output = run_command(logger, f"kubectl get pods -n {namespace} --no-headers", capture_output=True, check=False)
-#        if output:
-#            all_ready = True
-#            lines = output.splitlines()
-#            for line in lines:
-#                parts = line.split()
-#                if len(parts) < 2:
-#                    continue
-#                ready = parts[1]  # Expected format: "1/1"
-#                if ready != "1/1":
-#                    all_ready = False
-#                    # Log detailed readiness info for each pod not fully ready.
-#                    logger.error(f"Pod '{parts[0]}' is not ready: READY state is '{ready}'. Full details: {line}")
-#            if all_ready:
-#                logger.info("All pods are ready (READY: 1/1).")
-#                return
-#        time.sleep(interval)
-#        elapsed += interval
-#    logger.error("Timeout reached waiting for pods to be ready.")
-#    sys.exit(1)
-
 def wait_for_pods(logger, namespace, timeout=300, interval=10):
     """
     Poll until all pods in the given namespace are Running and have READY state where
@@ -191,13 +146,7 @@ def deploy_kafka_and_redpanda(logger):
     #logger = setup_logging()
     logger.info("Starting Kafka and Redpanda deployment script.")
 
-    # 1. Verify user.
-    #if getpass.getuser() != "muser":
-    #    logger.error("Error: Only user 'muser' is permitted to run this script. Exiting.")
-    #    sys.exit(1)
-    #logger.debug("User verification passed: running as 'muser'.")
-
-    # 2. Ensure namespace directory exists and switch to it.
+    # 1. Ensure namespace directory exists and switch to it.
     try:
         os.makedirs(NAMESPACE_DIR, exist_ok=True)
         os.chdir(NAMESPACE_DIR)
@@ -206,14 +155,14 @@ def deploy_kafka_and_redpanda(logger):
         logger.error("Failed to create or change directory to '%s': %s", NAMESPACE_DIR, str(e))
         sys.exit(1)
 
-    # 3. Check for required files; if missing, fetch them.
+    # 2. Check for required files; if missing, fetch them.
     missing_files = [f for f in REQUIRED_FILES if not os.path.exists(os.path.join(NAMESPACE_DIR, f))]
     if missing_files:
         fetch_missing_files(logger, missing_files)
     else:
         logger.debug("All required files are present.")
 
-    # 4. Verify that Minikube is running.
+    # 3. Verify that Minikube is running.
     try:
         result = subprocess.run(["minikube", "status"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
         if "Running" not in result.stdout.decode():
@@ -224,7 +173,7 @@ def deploy_kafka_and_redpanda(logger):
         logger.error("Failed to get Minikube status: %s", e.stderr.decode().strip() if e.stderr else str(e))
         sys.exit(1)
 
-    # 5. Ensure the 'streaming' namespace exists.
+    # 4. Ensure the 'streaming' namespace exists.
     try:
         result = subprocess.run(["kubectl", "get", "namespace", NAMESPACE],
                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -238,7 +187,7 @@ def deploy_kafka_and_redpanda(logger):
         logger.error("Error checking/creating namespace: %s", e.stderr.decode().strip() if e.stderr else str(e))
         sys.exit(1)
 
-    # 6. Check existing resources in the 'streaming' namespace.
+    # 5. Check existing resources in the 'streaming' namespace.
     try:
         result = subprocess.run(["kubectl", "get", "all", "-n", NAMESPACE],
                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
@@ -267,7 +216,7 @@ def deploy_kafka_and_redpanda(logger):
             logger.info("Expected resources already running. Exiting deployment script.")
             sys.exit(0)
     
-    # 7. If extraneous resources exist, prompt the user.
+    # 6. If extraneous resources exist, prompt the user.
     if extraneous:
         logger.info("Unexpected resources found in namespace '%s':", NAMESPACE)
         logger.info("-------------------------------------------------------------------------------------------------")
@@ -290,7 +239,7 @@ def deploy_kafka_and_redpanda(logger):
     else:
         choice = "1"  # Default if no extraneous resources.
 
-    # 8. Handle namespace deletion if requested.
+    # 7. Handle namespace deletion if requested.
     if extraneous and choice == "2":
         logger.info("Deleting namespace '%s'...", NAMESPACE)
         try:
@@ -309,7 +258,7 @@ def deploy_kafka_and_redpanda(logger):
             logger.error("Failed to delete or re-create namespace '%s': %s", NAMESPACE, e.stderr.decode().strip() if e.stderr else str(e))
             sys.exit(1)
 
-    # 9. Deploy Kafka resource.
+    # 8. Deploy Kafka resource.
     logger.info("Deploying Kafka resource...")
     try:
         subprocess.run(["kubectl", "apply", "-f", "kafka.yaml", "-n", NAMESPACE], check=True)
@@ -317,11 +266,11 @@ def deploy_kafka_and_redpanda(logger):
         logger.error("Failed to deploy Kafka resource: %s", e.stderr.decode().strip() if e.stderr else str(e))
         sys.exit(1)
 
-    # 10. Wait until Kafka StatefulSet rollout is complete.
+    # 9. Wait until Kafka StatefulSet rollout is complete.
     if not wait_for_pods(logger, "streaming"):
         sys.exit(1)
 
-    # 11. Create Kafka topic.
+    # 10. Create Kafka topic.
     logger.info("Creating Kafka topic '%s'...", TOPIC_NAME)
     try:
         subprocess.run(KAFKA_EXEC_CMD, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -330,7 +279,7 @@ def deploy_kafka_and_redpanda(logger):
         logger.error("Failed to create Kafka topic: %s", e.stderr.decode().strip() if e.stderr else str(e))
         sys.exit(1)
 
-    # 12. Deploy Redpanda resource.
+    # 11. Deploy Redpanda resource.
     logger.info("Deploying Redpanda resource...")
     try:
         subprocess.run(["kubectl", "apply", "-f", "redpanda.yaml", "-n", NAMESPACE], check=True)
@@ -338,11 +287,11 @@ def deploy_kafka_and_redpanda(logger):
         logger.error("Failed to deploy Redpanda resource: %s", e.stderr.decode().strip() if e.stderr else str(e))
         sys.exit(1)
 
-    # 13. Wait until Redpanda Deployment rollout is complete.
+    # 12. Wait until Redpanda Deployment rollout is complete.
     if not wait_for_pods(logger, "streaming"):
         sys.exit(1)
 
-    # 14. Display the final resources.
+    # 13. Display the final resources.
     try:
         result = subprocess.run(["kubectl", "get", "all", "-n", NAMESPACE, "-o", "wide"],
                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
@@ -406,7 +355,3 @@ def interactive_menu():
 
 if __name__ == '__main__':
     interactive_menu()
-
-# New function to remove the 'streaming' namespace.
-#if __name__ == '__main__':
-#    main()
