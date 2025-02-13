@@ -153,39 +153,6 @@ patch_service() {
     run_command "$patch_cmd"
 }
 
-# extract_nodeport: Extracts the NodePort from the service output.
-#extract_nodeport() {
-#    local namespace="$1"
-#    log_info "Extracting NodePort from service 'kubernetes-dashboard-kong-proxy'..."
-#    local svc_output
-#    svc_output=$(run_command "kubectl get svc -n $namespace kubernetes-dashboard-kong-proxy")
-#    # Use grep with a Perl regex to find something like :31447/TCP
-#    local nodeport
-#    nodeport=$(echo "$svc_output" | grep -oP ':(\d+)/TCP' | grep -oP '\d+')
-#    if [[ -z "$nodeport" ]]; then
-#        log_error "Failed to extract NodePort from service output."
-#        exit 1
-#    else
-#        log_info "Extracted NodePort: $nodeport"
-#        echo "$nodeport"
-#    fi
-#}
-
-# open_firewall: Opens the firewall for the given NodePort (Linux only).
-#open_firewall() {
-#    local nodeport="$1"
-#    if [[ "$OSTYPE" != "linux-gnu"* ]]; then
-#        log_info "Firewall configuration skipped on non-linux platform."
-#        return
-#    fi
-#    # Decode base64 "MTIzNA==" to get "1234"
-#    local password
-#    password=$(echo "MTIzNA==" | base64 --decode)
-#    log_info "Opening firewall port for NodePort $nodeport (requires root access)..."
-#    run_command "echo \"$password\" | sudo -S firewall-cmd --add-port=${nodeport}/tcp --permanent"
-#    run_command "echo \"$password\" | sudo -S firewall-cmd --reload"
-#}
-
 # call_secret_script: Calls the external secret generation script.
 call_secret_script() {
     local secret_script="/opt/minikube/scripts/python/kd-secrete-generate.py"
@@ -236,10 +203,6 @@ post_deployment() {
     for t in "${tasks[@]}"; do
         echo " - $t"
     done
-    #echo -e "\nIMPORTANT: Update the '/etc/nginx/conf.d/marvel.conf' file with the new NodePort ${nodeport} in the line:"
-    #echo "   proxy_pass https://192.168.49.2:${nodeport};"
-    #echo "Then restart Nginx with:"
-    #echo "   sudo systemctl restart nginx.service"
     local token
     token=$(run_command "kubectl -n kubernetes-dashboard create token dashboard-admin-sa --duration=48h")
     echo -e "\nDashboard Access Token (valid for 48h):"
@@ -268,13 +231,13 @@ remove_namespace() {
 interactive_menu() {
     while true; do
         echo ""
-        echo "-------------------------------"
+        echo "-------------------------------------------------------"
         echo "Kubernetes Dashboard Menu"
-        echo "-------------------------------"
+        echo "-------------------------------------------------------"
         echo "1. Deploy Kubernetes Dashboard in Minikube Cluster"
         echo "2. Remove Kubernetes Dashboard from Minikube Cluster"
         echo "3. Exit to resource deployment menu"
-        echo "-------------------------------"
+        echo "-------------------------------------------------------"
         read -rp "Enter your choice [1-3]: " choice
         case $choice in
             1)
@@ -310,11 +273,11 @@ main() {
         exit 1
     fi
     tasks_performed+=("User check passed (executed as 'muser')")
-    
+
     # 2. Logging directory has been created above.
     log_info "Logger initialized."
     tasks_performed+=("Logging configured")
-    
+
     # 3. Change directory to /opt/minikube/namespaces/kubernetes-dashboard/
     local target_dir="/opt/minikube/namespaces/kubernetes-dashboard/"
     if ! cd "$target_dir"; then
@@ -323,7 +286,7 @@ main() {
     fi
     log_info "Changed directory to $target_dir"
     tasks_performed+=("Changed directory to $target_dir")
-    
+
     # 4. Check Minikube status
     local status_output
     status_output=$(run_command "minikube status" )
@@ -333,7 +296,7 @@ main() {
     fi
     log_info "Minikube is running."
     tasks_performed+=("Minikube status verified")
-    
+
     # 5. Check if 'kubernetes-dashboard' namespace exists.
     local ns_exists=false
     if kubectl get ns kubernetes-dashboard >/dev/null 2>&1; then
@@ -342,7 +305,7 @@ main() {
     else
         log_info "Namespace 'kubernetes-dashboard' does not exist."
     fi
-    
+
     # 6. If namespace exists, check for resources and prompt user.
     local delete_ns=false
     if $ns_exists; then
@@ -368,7 +331,7 @@ main() {
             log_info "No resources found in the existing namespace."
         fi
     fi
-    
+
     # 7. Deploy Dashboard using Helm.
     local helm_cmd=""
     if $ns_exists && ! $delete_ns; then
@@ -378,51 +341,39 @@ main() {
     fi
     run_command "$helm_cmd"
     tasks_performed+=("Kubernetes Dashboard deployed via Helm")
-    
+
     # 8. Wait until all pods are fully ready (READY: 1/1)
     wait_for_pods "kubernetes-dashboard"
     tasks_performed+=("Dashboard resources reached full Ready state")
-    
+
     # 9. Display pods and services status
     display_resource_status "kubernetes-dashboard"
     tasks_performed+=("Resource status displayed")
-    
+
     # 10. Verify ServiceAccount and ClusterRoleBinding.
     check_and_create_sa_and_binding "kubernetes-dashboard"
     tasks_performed+=("ServiceAccount and ClusterRoleBinding verified/created")
-    
+
     # 11. Patch service to NodePort (only after ensuring pods are ready).
     patch_service "kubernetes-dashboard"
     tasks_performed+=("Service 'kubernetes-dashboard-kong-proxy' patched to NodePort")
-    
-    # 12. Extract NodePort value.
-    #local nodeport
-    #nodeport=$(extract_nodeport "kubernetes-dashboard")
-    #tasks_performed+=("Extracted NodePort: ${nodeport}")
-    
-    # 13. Open firewall for the extracted NodePort (if applicable).
-    #open_firewall "$nodeport"
-    #tasks_performed+=("Firewall opened for NodePort ${nodeport}")
-    
-    # 14. Call the external secret generation script.
+
+    # 12. Call the external secret generation script.
     call_secret_script
     tasks_performed+=("Secret generation script executed")
-    
-    # 15. Verify YAML files exist and apply them.
+
+    # 13. Verify YAML files exist and apply them.
     verify_and_apply_yaml
     tasks_performed+=("YAML files verified and applied")
-    
-    # 16. Restart Nginx Ingress Pods.
+
+    # 14. Restart Nginx Ingress Pods.
     restart_ingress
     tasks_performed+=("Nginx Ingress Pods restarted")
-    
-    # 17. Post-deployment summary: display tasks, instruct Nginx config update,
+
+    # 15. Post-deployment summary: display tasks, instruct Nginx config update,
     # retrieve token, and show Dashboard URL.
     post_deployment "${tasks_performed[@]}"
 }
 
 # Instead of calling main directly, call the interactive menu.
 interactive_menu
-
-# Execute main
-#main
