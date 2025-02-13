@@ -189,17 +189,6 @@ perform_update() {
 post_start_configuration() {
     log "\nConfiguring Docker environment..."
     eval "$(minikube docker-env)"
-    
-    #log "\nVerifying namespaces..."
-    #for ns in "${REQUIRED_NAMESPACES[@]}"; do
-    #    if ! kubectl get namespace "$ns" >/dev/null 2>&1; then
-    #        kubectl create namespace "$ns"
-    #        log "Created namespace: $ns"
-    #    else
-    #        log "Namespace already exists: $ns"
-    #    fi
-    #done
-    
     enable_addons
     display_cluster_info
 }
@@ -445,7 +434,6 @@ show_menu() {
                 break
                 ;;
             "Restore Resources")
-                # Placeholder: Implement restore_backup if needed.
                 log "Restore Resources option selected (not implemented)."
                 break
                 ;;
